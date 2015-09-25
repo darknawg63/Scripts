@@ -17,6 +17,13 @@ Calls Dump.sql and passes in the storage location in VAR = destination.
 * The variable $storage may need to be adjusted to the particular setup.
 
  -------------------------------------------------------------------------------
+
+  Includes:
+ -------------------------------------------------------------------------------
+ 
+ -Include\Dunp.sql
+
+ -------------------------------------------------------------------------------
 #>
 
 $hostName = get-content env:computername
@@ -32,7 +39,7 @@ function dump($instance) {
         Remove-Item $logFile
     }
 
-    sqlcmd -E -S $hostname\$instance -v destination = "'$destination$instance\'" -i Dump.sql -o $logFile
+    sqlcmd -E -S $hostname\$instance -v destination = "'$destination$instance\'" -i Include\Dump.sql -o $logFile
 }
 
 function backup($instances) {

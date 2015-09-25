@@ -3,8 +3,8 @@
  ----------------
 
  AUTHOR: Jerry Webster
- VERSION: 1.3
- DATE: 17-09-2015
+ VERSION: 1.4
+ DATE: 25-09-2015
 -----------------
  
 ** getBackupStatus()
@@ -21,19 +21,38 @@
  
  -conditions: Filter used for targeting specific log events.
 
+ ------------------------------------------------------------------------------- 
+
+ Includes:
  -------------------------------------------------------------------------------
+ 
+ -Include\Count.sql
+
+ -------------------------------------------------------------------------------
+
 #>
 
 $age = $null
 $dayOfWeek = (Get-Date).DayOfWeek.value__
+$instances = (get-itemproperty 'HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server').InstalledInstances
+$hostName = get-content env:computername
 $logName = "Application"
 $sDay = 86400
-$targetsIn = 6
-$targetsOut = 0
 $timeStamp = $null
 
 # Set the columns that we wish to query.
 $selection = @{"field" = "Id";"state" = 18264};
+
+# Get enumeration of databases per instance.
+function count() {
+    foreach($instance in $instances) {
+
+        $count += [int](sqlcmd -E -S $hostname\$instance -i include\Count.sql -h -1)
+    }
+
+    return $count
+}
+
 
 # Number of seconds since epoch
 function dateToSec($date) {
@@ -51,6 +70,8 @@ function getBackupStatus ($conditions) {
    
     $field = $conditions.field
     $state = $conditions.state
+    $targetsIn = count
+    $targetsOut = 0
 
     try {
 
@@ -78,25 +99,25 @@ function getBackupStatus ($conditions) {
 
             # Latest job < 2 days old, any day, all targets
             {$age -lt ($sDay * 2) -and $targetsIn -eq $targetsOut} {
-                Write-Host "Dumped $targetsOut of $targetsIn targets:" $timeStamp -NoNewline
+                Write-Host "Dumped $targetsOut of $targetsIn databases:" $timeStamp -NoNewline
                 $returnValue = 0
                 break
             } 
             # Latest job <= 3 days old, Sunday, Monday, all targets
             {$age -le ($sDay * 3) -and $dayOfWeek -eq 0 -or $dayOfWeek -eq 1 -and $targetsIn -eq $targetsOut} {
-                Write-Host "Dumped $targetsOut of $targetsIn targets:" $timeStamp -NoNewline
+                Write-Host "Dumped $targetsOut of $targetsIn databases:" $timeStamp -NoNewline
                 $returnValue = 0
                 break
             }
             # Latest job < 2 days old, any day, some targets
             {$age -lt ($sDay * 2) -and $targetsIn -ne $targetsOut} {
-                Write-Host "Dumped $targetsOut of $targetsIn targets: Last seen on" $timeStamp -NoNewline
+                Write-Host "Dumped $targetsOut of $targetsIn databases: Last seen on" $timeStamp -NoNewline
                 $returnValue = 2
                 break
             } 
             # Latest job >= 2 days old
             {$age -ge ($sDay * 2)} {
-                Write-Host "Dumped $targetsOut of $targetsIn targets: Last seen on" $timeStamp -NoNewline
+                Write-Host "Dumped $targetsOut of $targetsIn databases: Last seen on" $timeStamp -NoNewline
                 $returnValue = 2 
             }
         }
